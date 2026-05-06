@@ -1,4 +1,6 @@
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api').replace('localhost', '127.0.0.1');
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:5000/api';
 
 export interface IndexingStatus {
   status: 'SUCCESS' | 'FAILED' | 'PENDING' | 'SKIPPED';
@@ -35,53 +37,101 @@ export interface Job {
   publishingLogs?: PublishingLog[];
 }
 
-export async function getJobs(params?: { status?: string }): Promise<Job[]> {
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(
+      `API Error ${res.status}: ${errorText || 'Request failed'}`
+    );
+  }
+
+  return res.json();
+}
+
+export async function getJobs(params?: {
+  status?: string;
+}): Promise<Job[]> {
   let url = `${API_URL}/jobs`;
-  if (params && params.status) {
+
+  if (params?.status) {
     url += `?status=${params.status}`;
   }
+
   try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch jobs`);
-    return res.json();
+    const res = await fetch(url, {
+      cache: 'no-store',
+    });
+
+    return handleResponse<Job[]>(res);
   } catch (error: any) {
-    throw new Error(`Fetch failed for URL [${url}]. Reason: ${error.message}`);
+    console.error('getJobs error:', error);
+
+    throw new Error(
+      `Fetch failed for URL [${url}]. Reason: ${error.message}`
+    );
   }
 }
 
-export async function getJobBySlug(slug: string): Promise<Job> {
-  const res = await fetch(`${API_URL}/jobs/${slug}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch job');
-  return res.json();
+export async function getJobBySlug(
+  slug: string
+): Promise<Job> {
+  const res = await fetch(`${API_URL}/jobs/${slug}`, {
+    cache: 'no-store',
+  });
+
+  return handleResponse<Job>(res);
 }
 
-export async function createJob(jobData: Partial<Job>): Promise<Job> {
+export async function createJob(
+  jobData: Partial<Job>
+): Promise<Job> {
   const res = await fetch(`${API_URL}/jobs`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(jobData),
   });
-  if (!res.ok) throw new Error('Failed to create job');
-  return res.json();
+
+  return handleResponse<Job>(res);
 }
 
-export async function updateJob(id: string, jobData: Partial<Job>): Promise<Job> {
+export async function updateJob(
+  id: string,
+  jobData: Partial<Job>
+): Promise<Job> {
   const res = await fetch(`${API_URL}/jobs/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(jobData),
   });
-  if (!res.ok) throw new Error('Failed to update job');
-  return res.json();
+
+  return handleResponse<Job>(res);
 }
 
-export async function deleteJob(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/jobs/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete job');
+export async function deleteJob(
+  id: string
+): Promise<void> {
+  const res = await fetch(`${API_URL}/jobs/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to delete job');
+  }
 }
 
-export async function retriggerIndexing(id: string): Promise<Job> {
-  const res = await fetch(`${API_URL}/jobs/${id}/index`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to retrigger indexing');
-  return res.json();
+export async function retriggerIndexing(
+  id: string
+): Promise<Job> {
+  const res = await fetch(
+    `${API_URL}/jobs/${id}/index`,
+    {
+      method: 'POST',
+    }
+  );
+
+  return handleResponse<Job>(res);
 }
